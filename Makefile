@@ -1,6 +1,7 @@
 tidy:
-	go mod vendor
 	go mod tidy
+	go mod vendor
+
 
 run:
-	go run ./cmd/cli/main.go
+	go run ./cmd/cli/
