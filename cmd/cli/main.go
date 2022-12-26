@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 	"time"
@@ -14,9 +15,16 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-// b
 var (
 	isConnected = false
+	maxTemp     = 55
+)
+
+// will use to access the container at the indexes.
+const (
+	// iota starts at 0
+	labelIndex = iota
+	inputIndex
 )
 
 func main() {
@@ -36,14 +44,17 @@ func run() error {
 	a.Settings().SetTheme(theme.DarkTheme())
 	w := a.NewWindow("Smart water heater")
 	// fix starting window size
-	w.Resize(fyne.NewSize(1200, 800))
+	w.Resize(fyne.NewSize(400, 400))
 
 	btn := connectBtn(client, w)
 
-	tempCont := newContainer("Temperature:", "0")
-	go OnUpdate(tempCont.Objects[1])
+	tempCont := newContainer("Current Temperature:", startingTemp(), false)
+	topicCont := newContainer("Pub topic:", topic, false)
+	maxTempCont := newContainer("Desired temperature:", fmt.Sprintf("%d", maxTemp), false)
 
-	mainContainer := container.NewVBox(tempCont, btn)
+	go UpdateTemp(client, tempCont.Objects[inputIndex])
+
+	mainContainer := container.NewVBox(tempCont, topicCont, maxTempCont, btn)
 	w.SetContent(mainContainer)
 	// Run the app
 	w.ShowAndRun()
@@ -51,26 +62,46 @@ func run() error {
 	return nil
 }
 
-// OnUpdate will simulate getting info from the mqtt and changing the screen.
-func OnUpdate(input fyne.CanvasObject) {
+// UpdateTemp will simulate getting info from mqtt and changing the temperature on screen.
+func UpdateTemp(client mqtt.Client, input fyne.CanvasObject) {
 	// Create a timer that fires every 3 seconds
 	ticker := time.NewTicker(3 * time.Second)
 
-	// Start a loop to run the function every time the timer fires
+	// Start a loop to run the function every time the timer fires.
 	for range ticker.C {
-		intVal, _ := strconv.Atoi(input.(*widget.Entry).Text)
-		intVal += 1
-		input.(*widget.Entry).Text = fmt.Sprintf("%d", intVal)
-		// refresh the input so we display the updated value.
-		input.(*widget.Entry).Refresh()
+
+		// only update if the client is connected.
+		if isConnected {
+			inputVal, _ := strconv.Atoi(input.(*widget.Entry).Text)
+
+			// if we got to the max temperature than don't update.
+			if maxTemp == inputVal {
+				continue
+			}
+
+			inputVal += 1
+			input.(*widget.Entry).Text = fmt.Sprintf("%d", inputVal)
+
+			// send the msg to the mqtt client.
+			msg := fmt.Sprintf("Current Temperature: %dc", inputVal)
+			publish(client, msg)
+
+			// refresh the input so we display the updated value.
+			input.(*widget.Entry).Refresh()
+
+		}
 	}
+
 }
 
 // newContainer creates a new container with the label and the input inside.
-func newContainer(labelText, inputValue string) *fyne.Container {
+func newContainer(labelText string, inputValue string, enable bool) *fyne.Container {
 	// Create an input field and a label
 	input := widget.NewEntry()
-	input.Disable()
+	if !enable {
+		input.Disable()
+	}
+
 	input.SetText(inputValue)
 	label := widget.NewLabel(labelText)
 
@@ -88,7 +119,7 @@ func connectBtn(client mqtt.Client, w fyne.Window) *widget.Button {
 		if !isConnected {
 			connect(client)
 			sub(client)
-			publish(client)
+			// publish(client)
 			isConnected = true
 			btn.SetText("Disconnect")
 		} else {
@@ -102,4 +133,15 @@ func connectBtn(client mqtt.Client, w fyne.Window) *widget.Button {
 	}
 
 	return btn
+}
+
+// startingTemp will return a random staring temperature.
+func startingTemp() string {
+	// Seed the random number generator with the current time
+	rand.Seed(time.Now().UnixNano())
+
+	// Generate a random integer between 1 and 10
+	randomInt := rand.Intn(10) + 1
+
+	return fmt.Sprintf("%d", randomInt)
 }

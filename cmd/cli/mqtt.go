@@ -10,7 +10,7 @@ import (
 const (
 	broker = "broker.mqttdashboard.com"
 	port   = 1883
-	topic  = "topic/test"
+	topic  = "/home/smart_water_heater"
 )
 
 var messagePubHandler gomqtt.MessageHandler = func(client gomqtt.Client, msg gomqtt.Message) {
@@ -53,12 +53,10 @@ func sub(client gomqtt.Client) {
 	fmt.Printf("Subscribed to topic %s\n", topic)
 }
 
-func publish(client gomqtt.Client) {
-	num := 10
-	for i := 0; i < num; i++ {
-		text := fmt.Sprintf("Message %d", i)
-		token := client.Publish(topic, 0, false, text)
-		token.Wait()
-		time.Sleep(time.Second)
-	}
+func publish(client gomqtt.Client, msg string) {
+
+	token := client.Publish(topic, 0, false, msg)
+	token.Wait()
+	time.Sleep(time.Second)
+
 }
