@@ -76,6 +76,7 @@ func UpdateTemp(client mqtt.Client, input fyne.CanvasObject) {
 
 			// if we got to the max temperature than don't update.
 			if maxTemp == inputVal {
+				publish(client, fmt.Sprintf("Reached desired temperature: %dc", maxTemp))
 				continue
 			}
 
