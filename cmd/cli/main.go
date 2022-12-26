@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	fyne "fyne.io/fyne/v2"
@@ -50,7 +51,7 @@ func run() error {
 
 	tempCont := newContainer("Current Temperature:", startingTemp(), false)
 	topicCont := newContainer("Pub topic:", topic, false)
-	maxTempCont := newContainer("Desired temperature:", fmt.Sprintf("%d", maxTemp), false)
+	maxTempCont := newContainer("Desired temperature:", fmt.Sprintf("%d °C", maxTemp), false)
 
 	go UpdateTemp(client, tempCont.Objects[inputIndex])
 
@@ -72,7 +73,10 @@ func UpdateTemp(client mqtt.Client, input fyne.CanvasObject) {
 
 		// only update if the client is connected.
 		if isConnected {
-			inputVal, _ := strconv.Atoi(input.(*widget.Entry).Text)
+
+			txt := strings.ReplaceAll(input.(*widget.Entry).Text, "°C", "")
+			txt = strings.TrimSpace(txt)
+			inputVal, _ := strconv.Atoi(txt)
 
 			// if we got to the max temperature than don't update.
 			if maxTemp == inputVal {
@@ -81,10 +85,10 @@ func UpdateTemp(client mqtt.Client, input fyne.CanvasObject) {
 			}
 
 			inputVal += 1
-			input.(*widget.Entry).Text = fmt.Sprintf("%d", inputVal)
+			input.(*widget.Entry).Text = fmt.Sprintf("%d °C", inputVal)
 
 			// send the msg to the mqtt client.
-			msg := fmt.Sprintf("Current Temperature: %dc", inputVal)
+			msg := fmt.Sprintf("Current Temperature: %d °C", inputVal)
 			publish(client, msg)
 
 			// refresh the input so we display the updated value.
@@ -144,5 +148,5 @@ func startingTemp() string {
 	// Generate a random integer between 1 and 10
 	randomInt := rand.Intn(10) + 1
 
-	return fmt.Sprintf("%d", randomInt)
+	return fmt.Sprintf("%d °C", randomInt)
 }
